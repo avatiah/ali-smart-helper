@@ -1,1 +1,25 @@
-
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { width: 280px; font-family: sans-serif; padding: 15px; margin: 0; background: #f9f9f9; }
+        .card { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .title { font-size: 14px; font-weight: bold; color: #333; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .row { display: flex; justify-content: space-between; margin: 5px 0; font-size: 13px; }
+        .val { font-weight: bold; color: #e62e04; }
+        .btn { width: 100%; background: #ff4747; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+        .btn:hover { background: #d63030; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="title">AliSmart Аналитик</div>
+        <div class="row"><span>ID:</span> <span id="p-id" class="val">-</span></div>
+        <div class="row"><span>Цена:</span> <span id="p-price" class="val">-</span></div>
+        <button class="btn" id="check-btn">Проверить скидки</button>
+        <div id="status" style="font-size: 11px; margin-top: 10px; color: #666; text-align: center;"></div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
