@@ -1,1 +1,32 @@
-
+{
+  "manifest_version": 3,
+  "name": "AliSmart Buyer Tool",
+  "version": "1.0",
+  "description": "Поиск лучшей цены и купонов на AliExpress",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.aliexpress.com/*",
+    "https://*.aliexpress.ru/*",
+    "https://*.vercel.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.aliexpress.com/item/*.html*",
+        "https://*.aliexpress.ru/item/*.html*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
