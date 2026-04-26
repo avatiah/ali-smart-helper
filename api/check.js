@@ -3,54 +3,46 @@ import crypto from 'crypto';
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     const { id } = req.query;
-    
     const appKey = process.env.ALI_API_KEY;
     const appSecret = process.env.ALI_API_SECRET;
 
-    if (!id || !appKey || !appSecret) {
-        return res.status(400).json({ error: "Missing parameters or keys" });
-    }
+    if (!id) return res.status(400).json({ error: "No ID" });
+    if (!appKey || !appSecret) return res.status(400).json({ error: "Ключи API не найдены в Vercel" });
 
-    // 1. Формируем базовые параметры запроса
-    const params = {
-        method: 'aliexpress.affiliate.product.detail.get', // или ваш тестовый метод
-        app_key: appKey,
-        timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
-        format: 'json',
-        v: '2.0',
-        sign_method: 'md5',
-        product_ids: id, // ID товара из расширения
-        target_currency: 'ILS',
-        target_language: 'RU'
-    };
-
-    // 2. Функция генерации подписи (SIGN)
-    function generateSign(params, secret) {
-        const sortedKeys = Object.keys(params).sort();
-        let str = secret;
-        for (const key of sortedKeys) {
-            str += key + params[key];
-        }
-        str += secret;
-        return crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
-    }
-
-    const sign = generateSign(params, appSecret);
-    params.sign = sign;
-
-    // 3. Выполняем запрос к шлюзу AliExpress
     try {
+        const params = {
+            method: 'aliexpress.affiliate.product.detail.get',
+            app_key: appKey,
+            timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
+            format: 'json',
+            v: '2.0',
+            sign_method: 'md5',
+            product_ids: id,
+            target_currency: 'ILS',
+            target_language: 'RU'
+        };
+
+        const sortedKeys = Object.keys(params).sort();
+        let str = appSecret;
+        for (const key of sortedKeys) str += key + params[key];
+        str += appSecret;
+        const sign = crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
+        params.sign = sign;
+
         const query = new URLSearchParams(params).toString();
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${query}`);
         const data = await response.json();
 
-        // Пробрасываем данные в расширение
-        res.status(200).json({
-            status: "success",
-            source: "AliExpress API",
-            details: data // Тут будут цены, купоны и рейтинг из API
-        });
+        // Если сам Али вернул ошибку (например, неверный ID или ключ)
+        if (data.error_response) {
+            return res.status(200).json({ 
+                status: "api_error", 
+                msg: data.error_response.msg 
+            });
+        }
+
+        res.status(200).json({ status: "success", details: data });
     } catch (error) {
-        res.status(500).json({ error: "API connection failed" });
+        res.status(500).json({ error: "Server Error", msg: error.message });
     }
 }
