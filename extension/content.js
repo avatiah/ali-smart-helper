@@ -6,33 +6,29 @@ function getProductId() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "GET_PRODUCT_INFO") {
-        let price = "Не найдена";
+        let finalPrice = "Не найдена";
 
-        // Способ 1: Ищем в скрытом JSON на странице (самый точный метод)
-        try {
-            const scripts = document.querySelectorAll('script');
-            for (let s of scripts) {
-                if (s.innerText.includes('window.runParams')) {
-                    const priceMatch = s.innerText.match(/"actProductAmount":\s*\{"value":([\d\.]+)/);
-                    if (priceMatch) { price = priceMatch[1] + " ₪"; break; }
+        // Поиск в скрытых данных AliExpress (window.runParams)
+        const scripts = document.querySelectorAll('script');
+        for (let s of scripts) {
+            if (s.innerText.includes('window.runParams')) {
+                // Ищем значение actProductAmount
+                const amountMatch = s.innerText.match(/"actProductAmount":\{"value":([\d\.]+)/);
+                if (amountMatch) {
+                    finalPrice = amountMatch[1] + " ILS";
+                    break;
                 }
-            }
-        } catch (e) {}
-
-        // Способ 2: Визуальные селекторы (если JSON не сработал)
-        if (price === "Не найдена") {
-            const selectors = [
-                '[class*="Price--extraPriceText"]',
-                '[class*="price--current"]',
-                '.product-price-value'
-            ];
-            for (let s of selectors) {
-                const el = document.querySelector(s);
-                if (el && el.innerText) { price = el.innerText; break; }
             }
         }
 
-        sendResponse({ id: getProductId(), price: price });
+        // Запасной вариант по визуальным элементам (для иврита)
+        if (finalPrice === "Не найдена") {
+            const visualPrice = document.querySelector('[class*="Price--extraPriceText"]') || 
+                               document.querySelector('[class*="price--current"]');
+            if (visualPrice) finalPrice = visualPrice.innerText;
+        }
+
+        sendResponse({ id: getProductId(), price: finalPrice });
     }
     return true; 
 });
