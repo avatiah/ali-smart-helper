@@ -8,29 +8,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "GET_PRODUCT_INFO") {
         let price = "Не найдена";
 
-        // 1. Пытаемся вытащить из мета-тега (самый надежный способ)
+        // Самый надежный метод для иврит-версии — поиск в мета-тегах
         const metaPrice = document.querySelector('meta[property="og:title"]')?.content;
-        // Ищем паттерн цены (число с точкой)
         const priceMatch = metaPrice?.match(/ILS\s?([\d\.,]+)/) || metaPrice?.match(/₪\s?([\d\.,]+)/);
         
         if (priceMatch) {
             price = priceMatch[0];
         } else {
-            // 2. Ищем в специальном JSON объекте страницы
-            const scripts = document.querySelectorAll('script');
-            for (let s of scripts) {
-                if (s.innerText.includes('actProductAmount')) {
-                    const match = s.innerText.match(/"value":([\d\.]+)/);
-                    if (match) { price = match[1] + " ILS"; break; }
-                }
-            }
-        }
-
-        // 3. Крайний случай — по селектору для иврита
-        if (price === "Не найдена") {
-            const el = document.querySelector('[class*="Price--extraPriceText"]') || 
-                       document.querySelector('[class*="price--current"]');
-            if (el) price = el.innerText;
+            // Запасной вариант через визуальный поиск
+            const visualPrice = document.querySelector('[class*="Price--extraPriceText"]') || 
+                               document.querySelector('[class*="price--current"]');
+            if (visualPrice) price = visualPrice.innerText;
         }
 
         sendResponse({ id: getProductId(), price: price });
