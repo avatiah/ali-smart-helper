@@ -1,35 +1,51 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Спрашиваем у страницы AliExpress данные о товаре
+    const idEl = document.getElementById('p-id');
+    const priceEl = document.getElementById('p-price');
+    const statusEl = document.getElementById('status-area');
+    const checkBtn = document.getElementById('check-btn');
+
+    // 1. Получаем данные от вкладки AliExpress
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, {type: "GET_PRODUCT_INFO"}, (response) => {
-            if (response) {
-                document.getElementById('p-id').innerText = response.id || "Не найден";
-                document.getElementById('p-price').innerText = response.price || "Н/Д";
-            }
-        });
+        // Проверяем, что мы на странице товара
+        if (tabs[0].url.includes("aliexpress.com/item") || tabs[0].url.includes("aliexpress.ru/item")) {
+            chrome.tabs.sendMessage(tabs[0].id, {type: "GET_PRODUCT_INFO"}, (response) => {
+                if (response) {
+                    idEl.innerText = response.id || "Не найден";
+                    priceEl.innerText = response.price || "Цена вкл.";
+                } else {
+                    statusEl.innerText = "Обновите страницу товара";
+                }
+            });
+        } else {
+            idEl.innerText = "---";
+            priceEl.innerText = "Не товар";
+            statusEl.innerText = "Зайдите на страницу товара";
+            checkBtn.disabled = true;
+        }
     });
 
-    // 2. Обработка клика по кнопке
-    document.getElementById('check-btn').addEventListener('click', () => {
-        const productId = document.getElementById('p-id').innerText;
-        const status = document.getElementById('status');
-        
-        if (productId === "-" || productId === "Не найден") {
-            status.innerText = "Зайдите на страницу товара!";
-            return;
-        }
+    // 2. Логика кнопки — запрос к вашему мосту на Vercel
+    checkBtn.addEventListener('click', () => {
+        const productId = idEl.innerText;
+        if (productId === "Определяем..." || productId === "---") return;
 
-        status.innerText = "Запрос к API...";
-        
+        statusEl.innerText = "⚡ Запрос к вашему API...";
+        checkBtn.disabled = true;
+
         chrome.runtime.sendMessage({
             type: "FETCH_FROM_API",
             productId: productId
         }, (response) => {
+            checkBtn.disabled = false;
             if (response.success) {
-                status.innerText = "Данные получены (см. консоль)";
+                statusEl.innerText = "✅ Данные получены";
                 console.log("Ответ от Vercel:", response.data);
+                // Здесь можно обновить рейтинг или другие данные из API
+                if (response.data.rating) {
+                    document.getElementById('p-rating').innerText = response.data.rating;
+                }
             } else {
-                status.innerText = "Ошибка: " + response.error;
+                statusEl.innerText = "❌ Ошибка: " + response.error;
             }
         });
     });
