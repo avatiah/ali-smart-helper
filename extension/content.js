@@ -6,29 +6,33 @@ function getProductId() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "GET_PRODUCT_INFO") {
-        let currentPrice = "Не найдена";
+        let price = "Не найдена";
 
-        // 1. Ищем цену в объекте данных страницы (наиболее точно)
-        const scripts = document.querySelectorAll('script');
-        for (let script of scripts) {
-            if (script.innerText.includes('actProductAmount')) {
-                const match = script.innerText.match(/"value":(\d+\.?\d*)/);
-                if (match) {
-                    currentPrice = match[1] + " ILS";
-                    break;
+        // Способ 1: Ищем в скрытом JSON на странице (самый точный метод)
+        try {
+            const scripts = document.querySelectorAll('script');
+            for (let s of scripts) {
+                if (s.innerText.includes('window.runParams')) {
+                    const priceMatch = s.innerText.match(/"actProductAmount":\s*\{"value":([\d\.]+)/);
+                    if (priceMatch) { price = priceMatch[1] + " ₪"; break; }
                 }
+            }
+        } catch (e) {}
+
+        // Способ 2: Визуальные селекторы (если JSON не сработал)
+        if (price === "Не найдена") {
+            const selectors = [
+                '[class*="Price--extraPriceText"]',
+                '[class*="price--current"]',
+                '.product-price-value'
+            ];
+            for (let s of selectors) {
+                const el = document.querySelector(s);
+                if (el && el.innerText) { price = el.innerText; break; }
             }
         }
 
-        // 2. Если в скриптах нет, ищем по визуальным элементам (для иврита)
-        if (currentPrice === "Не найдена") {
-            const priceEl = document.querySelector('[class*="Price--extraPriceText"]') || 
-                           document.querySelector('[class*="price--current"]') ||
-                           document.querySelector('.pdp-info-left .price');
-            if (priceEl) currentPrice = priceEl.innerText;
-        }
-
-        sendResponse({ id: getProductId(), price: currentPrice });
+        sendResponse({ id: getProductId(), price: price });
     }
     return true; 
 });
