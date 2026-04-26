@@ -50,3 +50,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+// ... начало файла без изменений ...
+
+        chrome.runtime.sendMessage({
+            type: "FETCH_FROM_API",
+            productId: productId
+        }, (response) => {
+            checkBtn.disabled = false;
+            if (response.success && response.data.status === "success") {
+                const d = response.data;
+                document.getElementById('p-price').innerText = `${d.price} ${d.currency}`;
+                document.getElementById('p-rating').innerText = `${d.rating} ⭐`;
+                document.getElementById('status-area').innerText = `✅ Продавец: ${d.shop}`;
+            } else {
+                document.getElementById('status-area').innerText = "❌ API: " + (response.data.msg || "Ошибка");
+            }
+        });
+// ...
