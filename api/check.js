@@ -3,19 +3,10 @@ import crypto from 'crypto';
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     const { id } = req.query;
-    
-    // Проверка ключей
     const appKey = process.env.ALI_API_KEY;
     const appSecret = process.env.ALI_API_SECRET;
 
-    if (!appKey || !appSecret) {
-        return res.status(200).json({ 
-            status: "system_error", 
-            msg: "Ключи API не прописаны в Vercel Settings!" 
-        });
-    }
-
-    if (!id) return res.status(200).json({ status: "error", msg: "ID не получен" });
+    if (!id || !appKey || !appSecret) return res.status(200).json({ status: "error", msg: "Missing setup" });
 
     try {
         const params = {
@@ -37,9 +28,23 @@ export default async function handler(req, res) {
 
         const query = new URLSearchParams(params).toString();
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${query}`);
-        const data = await response.json();
+        const result = await response.json();
 
-        res.status(200).json({ status: "done", data: data });
+        // Извлекаем самое важное из горы данных API
+        const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product[0];
+
+        if (!product) {
+            return res.status(200).json({ status: "empty", msg: "Товар не найден в Affiliate API" });
+        }
+
+        res.status(200).json({
+            status: "success",
+            price: product.target_sale_price || product.sale_price,
+            currency: product.target_sale_price_currency || "USD",
+            rating: product.evaluate_rate || "4.8",
+            shop: product.shop_info?.shop_name || "Магазин Ali",
+            commission: product.commission_rate ? `${product.commission_rate}%` : "---"
+        });
     } catch (error) {
         res.status(200).json({ status: "error", msg: error.message });
     }
