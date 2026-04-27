@@ -4,19 +4,24 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     const { id } = req.query;
     
-    // ПРОВЕРКА КЛЮЧЕЙ
     const appKey = process.env.ALI_API_KEY;
     const appSecret = process.env.ALI_API_SECRET;
 
+    // Детальная проверка ключей для отладки
     if (!appKey || !appSecret) {
-        return res.status(200).json({ status: "error", msg: "Ключи API не настроены в Vercel" });
+        return res.status(200).json({ 
+            status: "error", 
+            msg: `Настройка не завершена: ${!appKey ? 'KEY отсутствует' : ''} ${!appSecret ? 'SECRET отсутствует' : ''}` 
+        });
     }
+
+    if (!id) return res.status(200).json({ status: "error", msg: "ID товара не получен" });
 
     try {
         const params = {
             method: 'aliexpress.affiliate.product.detail.get',
             app_key: appKey,
-            timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
+            timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '').slice(0, 19),
             format: 'json',
             v: '2.0',
             sign_method: 'md5',
@@ -25,7 +30,6 @@ export default async function handler(req, res) {
             target_language: 'RU'
         };
 
-        // Генерация SIGN
         const sortedKeys = Object.keys(params).sort();
         let str = appSecret;
         for (const key of sortedKeys) str += key + params[key];
@@ -35,22 +39,22 @@ export default async function handler(req, res) {
 
         const query = new URLSearchParams(params).toString();
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${query}`);
-        const data = await response.json();
+        const result = await response.json();
 
-        // Проверка ответа от AliExpress
-        const result = data.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
+        const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
 
-        if (result) {
+        if (product) {
             res.status(200).json({
                 status: "success",
-                price: result.target_sale_price || result.sale_price,
-                currency: result.target_sale_price_currency || "ILS",
-                rating: result.evaluate_rate || "5.0"
+                price: product.target_sale_price || product.sale_price,
+                currency: product.target_sale_price_currency || "ILS",
+                rating: product.evaluate_rate || "5.0",
+                shop: product.shop_info?.shop_name || "Ali Store"
             });
         } else {
-            res.status(200).json({ status: "error", msg: "API не нашло товар" });
+            res.status(200).json({ status: "error", msg: "Товар не найден в Affiliate API" });
         }
     } catch (e) {
-        res.status(200).json({ status: "error", msg: e.message });
+        res.status(200).json({ status: "error", msg: "Ошибка сервера: " + e.message });
     }
 }
