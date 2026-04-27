@@ -2,19 +2,15 @@ import crypto from 'crypto';
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Content-Type', 'application/json');
 
-    if (req.method === 'OPTIONS') return res.status(200).end();
-
     const { id } = req.query;
-    // Используем ваши подтвержденные названия переменных из Vercel
     const appKey = process.env.ALI_APP_KEY;
     const appSecret = process.env.ALI_SECRET_KEY;
     const trackingId = process.env.ALI_TRACKING_ID || 'default';
 
-    if (!id) return res.status(200).json({ status: "error", msg: "ID не получен" });
-    if (!appKey || !appSecret) return res.status(200).json({ status: "error", msg: "Ключи не настроены" });
+    if (!id) return res.json({ status: "error", msg: "ID не получен" });
+    if (!appKey || !appSecret) return res.json({ status: "error", msg: "Ключи не найдены в Vercel" });
 
     try {
         const params = {
@@ -32,7 +28,6 @@ export default async function handler(req, res) {
         let str = appSecret.trim();
         for (const key of sortedKeys) str += key + params[key];
         str += appSecret.trim();
-        
         const sign = crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
         params.sign = sign;
 
@@ -49,10 +44,9 @@ export default async function handler(req, res) {
                 currency: product.target_sale_price_currency || "ILS"
             });
         } else {
-            const aliError = result.error_response?.sub_msg || "Товар не в партнерке (404)";
-            res.status(200).json({ status: "error", msg: aliError });
+            res.json({ status: "error", msg: result.error_response?.sub_msg || "Товар не найден в API" });
         }
     } catch (e) {
-        res.status(200).json({ status: "error", msg: e.message });
+        res.json({ status: "error", msg: e.message });
     }
 }
