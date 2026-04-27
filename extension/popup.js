@@ -1,71 +1,54 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Элементы интерфейса
-    const checkBtn = document.getElementById('check-btn');
-    const priceEl = document.getElementById('p-price');
-    const ratingEl = document.getElementById('p-rating');
-    const statusArea = document.getElementById('status-area');
-    const idEl = document.getElementById('p-id');
+document.addEventListener('DOMContentLoaded', () => {
+    const productIdEl = document.getElementById('productId');
+    const priceValueEl = document.querySelector('.price-value');
+    const statusText = document.getElementById('statusText');
+    const checkBtn = document.getElementById('checkBtn');
 
-    // 1. Сначала запрашиваем данные напрямую со страницы (через content.js)
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (!tabs[0]) return;
+    let fallbackPrice = null;
 
-        chrome.tabs.sendMessage(tabs[0].id, {type: "GET_PRODUCT_INFO"}, function(response) {
-            if (response) {
-                // Отображаем ID и ту цену, которую удалось (или не удалось) найти на странице
-                idEl.innerText = response.id || "---";
-                priceEl.innerText = response.price || "Не найдена";
-                
-                // Если ID успешно определен, автоматически запускаем проверку через API
-                if (response.id && response.id !== "---") {
-                    fetchDataFromVercel(response.id);
-                }
+    // 1. Спрашиваем данные у страницы при открытии
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, { type: "GET_PRODUCT_DATA" }, (response) => {
+            if (response && response.id) {
+                productIdEl.textContent = response.id;
+                fallbackPrice = response.pagePrice;
+                statusText.textContent = "Готов к анализу";
             } else {
-                statusArea.innerText = "❌ Не удалось связаться со страницей";
+                productIdEl.textContent = "Не найден";
+                statusText.textContent = "Зайдите на страницу товара";
             }
         });
     });
 
-    // 2. Обработчик клика по кнопке (для ручного обновления)
-    checkBtn.addEventListener('click', function() {
-        const currentId = idEl.innerText;
-        if (currentId && currentId !== "---" && currentId !== "Определяем...") {
-            fetchDataFromVercel(currentId);
-        } else {
-            statusArea.innerText = "❌ Сначала откройте товар на AliExpress";
-        }
-    });
+    // 2. Кнопка проверки через ваш Vercel
+    checkBtn.addEventListener('click', () => {
+        const currentId = productIdEl.textContent;
 
-    // 3. Основная функция запроса к вашему серверу Vercel
-    function fetchDataFromVercel(productId) {
+        if (!currentId || currentId === "Не найден" || currentId === "Определяем...") {
+            return alert("ID товара не определен");
+        }
+
         checkBtn.disabled = true;
-        statusArea.innerHTML = "⏳ <span style='color: #666'>Запрос к API...</span>";
+        statusText.textContent = "Запрос к API...";
 
         chrome.runtime.sendMessage({
             type: "FETCH_FROM_API",
-            productId: productId
+            productId: currentId
         }, (response) => {
             checkBtn.disabled = false;
 
-            if (response && response.success && response.data.status === "success") {
-                const d = response.data;
-                
-                // Обновляем цену (делаем её зеленой и крупной)
-                priceEl.innerText = `${d.price} ${d.currency}`;
-                priceEl.style.color = "#28a745";
-                priceEl.style.fontWeight = "bold";
-
-                // Обновляем рейтинг
-                ratingEl.innerText = `${d.rating} ★`;
-                
-                // Обновляем статус
-                statusArea.innerHTML = `✅ <span style="color: #28a745">Данные получены: ${d.shop}</span>`;
+            if (response.success && response.data.status === "success") {
+                statusText.textContent = "✅ Данные получены";
+                priceValueEl.textContent = `${response.data.price} ${response.data.currency}`;
             } else {
-                // Если API вернуло ошибку или ключи не настроены
-                const errorMsg = response?.data?.msg || response?.error || "Ошибка сети";
-                statusArea.innerHTML = `❌ <span style="color: #d93025">Ошибка: ${errorMsg}</span>`;
-                console.error("Ошибка API:", response);
+                // ПЛАН Б: Если API выдал 404 или ошибку, берем цену со страницы
+                if (fallbackPrice) {
+                    priceValueEl.textContent = fallbackPrice;
+                    statusText.textContent = "⚠️ Цена со страницы (API недоступно)";
+                } else {
+                    statusText.textContent = "❌ Ошибка: " + (response.data?.msg || "неизвестно");
+                }
             }
         });
-    }
+    });
 });
