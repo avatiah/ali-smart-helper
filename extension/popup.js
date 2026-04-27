@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let fallbackPrice = null;
 
-    // 1. Спрашиваем данные у страницы при открытии
+    // Запрашиваем данные у контент-скрипта
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, { type: "GET_PRODUCT_DATA" }, (response) => {
             if (response && response.id) {
@@ -15,16 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText.textContent = "Готов к анализу";
             } else {
                 productIdEl.textContent = "Не найден";
-                statusText.textContent = "Зайдите на страницу товара";
+                statusText.textContent = "Перейдите на страницу товара";
             }
         });
     });
 
-    // 2. Кнопка проверки через ваш Vercel
     checkBtn.addEventListener('click', () => {
         const currentId = productIdEl.textContent;
 
-        if (!currentId || currentId === "Не найден" || currentId === "Определяем...") {
+        if (!currentId || currentId === "Определяем..." || currentId === "Не найден") {
             return alert("ID товара не определен");
         }
 
@@ -41,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText.textContent = "✅ Данные получены";
                 priceValueEl.textContent = `${response.data.price} ${response.data.currency}`;
             } else {
-                // ПЛАН Б: Если API выдал 404 или ошибку, берем цену со страницы
+                // Если API выдало 404, показываем цену, найденную на странице
                 if (fallbackPrice) {
                     priceValueEl.textContent = fallbackPrice;
                     statusText.textContent = "⚠️ Цена со страницы (API недоступно)";
