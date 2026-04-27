@@ -4,28 +4,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusText = document.getElementById('statusText');
     const checkBtn = document.getElementById('checkBtn');
 
-    let fallbackPrice = null;
-
-    // Запрашиваем данные у контент-скрипта
+    // Получаем ID от content.js
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, { type: "GET_PRODUCT_DATA" }, (response) => {
             if (response && response.id) {
                 productIdEl.textContent = response.id;
-                fallbackPrice = response.pagePrice;
                 statusText.textContent = "Готов к анализу";
             } else {
                 productIdEl.textContent = "Не найден";
-                statusText.textContent = "Перейдите на страницу товара";
+                statusText.textContent = "Зайдите на страницу товара";
             }
         });
     });
 
     checkBtn.addEventListener('click', () => {
         const currentId = productIdEl.textContent;
-
-        if (!currentId || currentId === "Определяем..." || currentId === "Не найден") {
-            return alert("ID товара не определен");
-        }
+        if (!currentId || currentId === "Определяем..." || currentId === "Не найден") return;
 
         checkBtn.disabled = true;
         statusText.textContent = "Запрос к API...";
@@ -35,18 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
             productId: currentId
         }, (response) => {
             checkBtn.disabled = false;
-
             if (response.success && response.data.status === "success") {
                 statusText.textContent = "✅ Данные получены";
                 priceValueEl.textContent = `${response.data.price} ${response.data.currency}`;
             } else {
-                // Если API выдало 404, показываем цену, найденную на странице
-                if (fallbackPrice) {
-                    priceValueEl.textContent = fallbackPrice;
-                    statusText.textContent = "⚠️ Цена со страницы (API недоступно)";
-                } else {
-                    statusText.textContent = "❌ Ошибка: " + (response.data?.msg || "неизвестно");
-                }
+                statusText.textContent = "❌ " + (response.data?.msg || "Ошибка");
             }
         });
     });
