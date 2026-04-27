@@ -1,26 +1,36 @@
-function getProductId() {
+// Функция для поиска ID товара
+function extractProductId() {
     const url = window.location.href;
-    const match = url.match(/item\/(\d+)\.html/);
-    return match ? match[1] : null;
+    const match = url.match(/item\/(\+d)\.html/);
+    if (match) return match[1];
+    const params = new URLSearchParams(window.location.search);
+    return params.get('itemId');
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === "GET_PRODUCT_INFO") {
-        let price = "Не найдена";
-        
-        // Поиск в мета-тегах (лучший способ для he.aliexpress.com)
-        const metaPrice = document.querySelector('meta[property="og:title"]')?.content;
-        const priceMatch = metaPrice?.match(/ILS\s?([\d\.,]+)/) || metaPrice?.match(/₪\s?([\d\.,]+)/);
-        
-        if (priceMatch) {
-            price = priceMatch[0];
-        } else {
-            const visual = document.querySelector('[class*="Price--extraPriceText"]') || 
-                           document.querySelector('[class*="price--current"]');
-            if (visual) price = visual.innerText;
-        }
-
-        sendResponse({ id: getProductId(), price: price });
+// Новая функция: берем цену прямо с экрана
+function getPriceFromPage() {
+    const priceSelectors = [
+        '.pdp-info-left .pdp-price',
+        '[class*="price--current"]',
+        '.product-price-value',
+        '#j-sku-discount-price',
+        '.original-price-container'
+    ];
+    
+    for (let selector of priceSelectors) {
+        const el = document.querySelector(selector);
+        if (el && el.innerText.length > 0) return el.innerText;
     }
-    return true; 
+    return null;
+}
+
+// Слушаем запросы от попапа
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === "GET_PRODUCT_DATA") {
+        sendResponse({ 
+            id: extractProductId(), 
+            pagePrice: getPriceFromPage() 
+        });
+    }
+    return true;
 });
