@@ -7,18 +7,17 @@ function getProductId() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "GET_PRODUCT_INFO") {
         let price = "Не найдена";
-
-        // Самый надежный метод для иврит-версии — поиск в мета-тегах
+        
+        // Поиск в мета-тегах (лучший способ для he.aliexpress.com)
         const metaPrice = document.querySelector('meta[property="og:title"]')?.content;
         const priceMatch = metaPrice?.match(/ILS\s?([\d\.,]+)/) || metaPrice?.match(/₪\s?([\d\.,]+)/);
         
         if (priceMatch) {
             price = priceMatch[0];
         } else {
-            // Запасной вариант через визуальный поиск
-            const visualPrice = document.querySelector('[class*="Price--extraPriceText"]') || 
-                               document.querySelector('[class*="price--current"]');
-            if (visualPrice) price = visualPrice.innerText;
+            const visual = document.querySelector('[class*="Price--extraPriceText"]') || 
+                           document.querySelector('[class*="price--current"]');
+            if (visual) price = visual.innerText;
         }
 
         sendResponse({ id: getProductId(), price: price });
