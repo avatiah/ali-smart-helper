@@ -1,18 +1,18 @@
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
+    // Разрешаем запросы из расширения
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Content-Type', 'application/json');
+
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { id } = req.query;
     const { ALI_APP_KEY, ALI_SECRET_KEY } = process.env;
 
     if (!id) return res.json({ status: "error", msg: "ID не получен" });
-    
-    // Проверка наличия ключей в Vercel
-    if (!ALI_APP_KEY || !ALI_SECRET_KEY) {
-        return res.json({ status: "error", msg: "Ключи не найдены в Vercel" });
-    }
+    if (!ALI_APP_KEY || !ALI_SECRET_KEY) return res.json({ status: "error", msg: "Ключи Vercel отсутствуют" });
 
     try {
         const params = {
@@ -36,21 +36,20 @@ export default async function handler(req, res) {
 
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${new URLSearchParams(params)}`);
         const result = await response.json();
-        
-        // Извлекаем данные, которые мы видели на скриншотах ошибок
         const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
 
         if (product) {
             res.json({
                 status: "success",
-                version: "1.0.1",
                 price: product.target_sale_price || product.sale_price,
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            res.json({ status: "error", msg: "API: Товар не найден" });
+            // Если API вернуло ошибку, пробрасываем её для диагностики
+            const errorMsg = result.error_response?.msg || "Товар не найден в API";
+            res.json({ status: "error", msg: errorMsg });
         }
     } catch (e) {
-        res.json({ status: "error", msg: "Ошибка сервера (JSON)" });
+        res.json({ status: "error", msg: "Ошибка сервера" });
     }
 }
