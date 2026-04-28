@@ -7,7 +7,6 @@ export default async function handler(req, res) {
     const { id } = req.query;
     const appKey = process.env.ALI_APP_KEY;
     const appSecret = process.env.ALI_SECRET_KEY;
-    const trackingId = process.env.ALI_TRACKING_ID || 'default';
 
     if (!id) return res.json({ status: "error", msg: "ID не получен" });
     if (!appKey || !appSecret) return res.json({ status: "error", msg: "Ключи не найдены в Vercel" });
@@ -20,15 +19,13 @@ export default async function handler(req, res) {
             format: 'json',
             v: '2.0',
             sign_method: 'md5',
-            product_ids: id,
-            tracking_id: trackingId.trim()
+            product_ids: id
         };
 
         const sortedKeys = Object.keys(params).sort();
         let str = appSecret.trim();
         for (const key of sortedKeys) str += key + params[key];
         str += appSecret.trim();
-        
         const sign = crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
         params.sign = sign;
 
@@ -45,9 +42,9 @@ export default async function handler(req, res) {
                 currency: product.target_sale_price_currency || "ILS"
             });
         } else {
-            res.json({ status: "error", msg: result.error_response?.sub_msg || "Товар не найден в API" });
+            res.json({ status: "error", msg: "API: Товар не найден" });
         }
     } catch (e) {
-        res.json({ status: "error", msg: "Ошибка сервера: " + e.message });
+        res.json({ status: "error", msg: "Ошибка сервера" });
     }
 }
