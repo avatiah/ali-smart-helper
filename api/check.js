@@ -7,14 +7,9 @@ export default async function handler(req, res) {
     const { id } = req.query;
     const { ALI_APP_KEY, ALI_SECRET_KEY, ALI_TRACKING_ID } = process.env;
 
-    if (!id) return res.status(200).json({ status: "error", msg: "ID не указан" });
-    
-    // Проверка наличия ключей в системе Vercel
+    if (!id) return res.status(200).json({ status: "error", msg: "ID не получен" });
     if (!ALI_APP_KEY || !ALI_SECRET_KEY) {
-        return res.status(200).json({ 
-            status: "error", 
-            msg: "Ключи не найдены в Vercel. Проверьте Settings -> Environment Variables" 
-        });
+        return res.status(200).json({ status: "error", msg: "Ключи не найдены в Vercel" });
     }
 
     try {
@@ -29,32 +24,29 @@ export default async function handler(req, res) {
             tracking_id: ALI_TRACKING_ID || 'default'
         };
 
-        // Подпись
         const sortedKeys = Object.keys(params).sort();
         let str = ALI_SECRET_KEY.trim();
         for (const key of sortedKeys) str += key + params[key];
         str += ALI_SECRET_KEY.trim();
+        
         const sign = crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
         params.sign = sign;
 
-        const apiResponse = await fetch(`https://eco.aliexpress.com/routerrest?${new URLSearchParams(params)}`);
-        const result = await apiResponse.json();
+        const response = await fetch(`https://eco.aliexpress.com/routerrest?${new URLSearchParams(params)}`);
+        const result = await response.json();
 
         const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
 
         if (product) {
-            return res.status(200).json({
+            res.status(200).json({
                 status: "success",
                 price: product.target_sale_price || product.sale_price,
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            return res.status(200).json({ 
-                status: "error", 
-                msg: result.error_response?.sub_msg || "Товар не найден в API AliExpress" 
-            });
+            res.status(200).json({ status: "error", msg: "API: Товар не найден" });
         }
-    } catch (err) {
-        return res.status(200).json({ status: "error", msg: "Ошибка сервера: " + err.message });
+    } catch (e) {
+        res.status(200).json({ status: "error", msg: "Ошибка сервера" });
     }
 }
