@@ -7,6 +7,7 @@ export default async function handler(req, res) {
     const { id } = req.query;
     const { ALI_APP_KEY, ALI_SECRET_KEY, ALI_TRACKING_ID } = process.env;
 
+    // Проверка ключей, которые мы видели в настройках
     if (!id) return res.status(200).json({ status: "error", msg: "ID не получен" });
     if (!ALI_APP_KEY || !ALI_SECRET_KEY) {
         return res.status(200).json({ status: "error", msg: "Ключи не найдены в Vercel" });
@@ -44,7 +45,7 @@ export default async function handler(req, res) {
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            res.status(200).json({ status: "error", msg: "API: Товар не найден" });
+            res.status(200).json({ status: "error", msg: "Товар не найден в API" });
         }
     } catch (e) {
         res.status(200).json({ status: "error", msg: "Ошибка сервера" });
