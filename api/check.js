@@ -9,20 +9,11 @@ export default async function handler(req, res) {
 
     const { id } = req.query;
     
-    // Если зашли просто браузером без ID — подтверждаем, что API работает
-    if (!id) {
-        return res.json({ 
-            status: "online", 
-            version: "1.0.3", 
-            message: "API готово к работе. Ожидаю productId." 
-        });
-    }
+    // Проверка "пульса" API
+    if (!id) return res.json({ status: "online", version: "1.0.4" });
 
     const { ALI_APP_KEY, ALI_SECRET_KEY } = process.env;
-    if (!ALI_APP_KEY || !ALI_SECRET_KEY) {
-        return res.json({ status: "error", msg: "Ключи не настроены в Vercel" });
-    }
-
+    
     try {
         const params = {
             method: 'aliexpress.affiliate.product.detail.get',
@@ -31,8 +22,7 @@ export default async function handler(req, res) {
             format: 'json',
             v: '2.0',
             sign_method: 'md5',
-            product_ids: id,
-            tracking_id: 'isradata_2026'
+            product_ids: id
         };
 
         const sortedKeys = Object.keys(params).sort();
@@ -45,6 +35,7 @@ export default async function handler(req, res) {
 
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${new URLSearchParams(params)}`);
         const result = await response.json();
+        
         const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
 
         if (product) {
@@ -54,7 +45,7 @@ export default async function handler(req, res) {
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            res.json({ status: "error", msg: result.error_response?.msg || "Товар не найден" });
+            res.json({ status: "error", msg: "API: Not Found" });
         }
     } catch (e) {
         res.json({ status: "error", msg: "Server Error" });
