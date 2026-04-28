@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
+    // CORS настройки для браузера
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Content-Type', 'application/json');
@@ -9,8 +10,8 @@ export default async function handler(req, res) {
 
     const { id } = req.query;
     
-    // Тест работоспособности
-    if (!id) return res.json({ status: "online", version: "1.0.5" });
+    // Проверка жизни API (для теста в браузере)
+    if (!id) return res.json({ status: "working", version: "1.0.6" });
 
     const { ALI_APP_KEY, ALI_SECRET_KEY } = process.env;
 
@@ -44,9 +45,9 @@ export default async function handler(req, res) {
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            res.json({ status: "error", msg: "Товар не найден в API" });
+            res.json({ status: "error", msg: "Товар не найден" });
         }
     } catch (e) {
-        res.json({ status: "error", msg: "Ошибка сервера" });
+        res.json({ status: "error", msg: "Server Error" });
     }
 }
