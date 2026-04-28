@@ -7,11 +7,8 @@ export default async function handler(req, res) {
     const { id } = req.query;
     const { ALI_APP_KEY, ALI_SECRET_KEY, ALI_TRACKING_ID } = process.env;
 
-    // Проверка ключей, которые мы видели в настройках
-    if (!id) return res.status(200).json({ status: "error", msg: "ID не получен" });
-    if (!ALI_APP_KEY || !ALI_SECRET_KEY) {
-        return res.status(200).json({ status: "error", msg: "Ключи не найдены в Vercel" });
-    }
+    if (!id) return res.json({ status: "error", msg: "ID не получен" });
+    if (!ALI_APP_KEY || !ALI_SECRET_KEY) return res.json({ status: "error", msg: "Ключи Vercel не найдены" });
 
     try {
         const params = {
@@ -29,25 +26,19 @@ export default async function handler(req, res) {
         let str = ALI_SECRET_KEY.trim();
         for (const key of sortedKeys) str += key + params[key];
         str += ALI_SECRET_KEY.trim();
-        
         const sign = crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
         params.sign = sign;
 
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${new URLSearchParams(params)}`);
         const result = await response.json();
-
         const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
 
         if (product) {
-            res.status(200).json({
-                status: "success",
-                price: product.target_sale_price || product.sale_price,
-                currency: product.target_sale_price_currency || "USD"
-            });
+            res.json({ status: "success", price: product.target_sale_price || product.sale_price, currency: product.target_sale_price_currency || "USD" });
         } else {
-            res.status(200).json({ status: "error", msg: "Товар не найден в API" });
+            res.json({ status: "error", msg: "API: Товар не найден" });
         }
     } catch (e) {
-        res.status(200).json({ status: "error", msg: "Ошибка сервера" });
+        res.json({ status: "error", msg: "Ошибка сервера" });
     }
 }
