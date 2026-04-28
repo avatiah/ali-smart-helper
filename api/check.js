@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
-    // Разрешаем запросы из расширения
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Content-Type', 'application/json');
@@ -9,10 +8,20 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { id } = req.query;
-    const { ALI_APP_KEY, ALI_SECRET_KEY } = process.env;
+    
+    // Если зашли просто браузером без ID — подтверждаем, что API работает
+    if (!id) {
+        return res.json({ 
+            status: "online", 
+            version: "1.0.3", 
+            message: "API готово к работе. Ожидаю productId." 
+        });
+    }
 
-    if (!id) return res.json({ status: "error", msg: "ID не получен" });
-    if (!ALI_APP_KEY || !ALI_SECRET_KEY) return res.json({ status: "error", msg: "Ключи Vercel отсутствуют" });
+    const { ALI_APP_KEY, ALI_SECRET_KEY } = process.env;
+    if (!ALI_APP_KEY || !ALI_SECRET_KEY) {
+        return res.json({ status: "error", msg: "Ключи не настроены в Vercel" });
+    }
 
     try {
         const params = {
@@ -45,11 +54,9 @@ export default async function handler(req, res) {
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            // Если API вернуло ошибку, пробрасываем её для диагностики
-            const errorMsg = result.error_response?.msg || "Товар не найден в API";
-            res.json({ status: "error", msg: errorMsg });
+            res.json({ status: "error", msg: result.error_response?.msg || "Товар не найден" });
         }
     } catch (e) {
-        res.json({ status: "error", msg: "Ошибка сервера" });
+        res.json({ status: "error", msg: "Server Error" });
     }
 }
