@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let fallbackPrice = null;
 
-    // Получаем ID от content.js при открытии попапа
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, { type: "GET_PRODUCT_DATA" }, (response) => {
             if (response && response.id) {
@@ -15,28 +14,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText.textContent = "Готов к анализу";
             } else {
                 productIdEl.textContent = "Не найден";
-                statusText.textContent = "Зайдите на страницу товара";
+                statusText.textContent = "Перейдите на страницу товара";
             }
         });
     });
 
     checkBtn.addEventListener('click', () => {
-        const currentId = productIdEl.textContent;
-        if (!currentId || currentId === "Определяем...") return;
+        const id = productIdEl.textContent;
+        if (!id || id === "Определяем..." || id === "Не найден") return;
 
         checkBtn.disabled = true;
         statusText.textContent = "Запрос к API...";
 
         chrome.runtime.sendMessage({
             type: "FETCH_FROM_API",
-            productId: currentId
+            productId: id
         }, (response) => {
             checkBtn.disabled = false;
             if (response.success && response.data.status === "success") {
                 statusText.textContent = "✅ Данные получены";
                 priceValueEl.textContent = `${response.data.price} ${response.data.currency}`;
             } else {
-                // Если API выдало ошибку (404 или ключи), используем цену со страницы
+                // Если API не срабатывает, используем цену со страницы
                 if (fallbackPrice) {
                     priceValueEl.textContent = fallbackPrice;
                     statusText.textContent = "⚠️ Цена со страницы (API недоступно)";
