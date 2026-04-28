@@ -1,13 +1,13 @@
-function extractProductId() {
-    const match = window.location.href.match(/(\d{10,20})\.html/);
-    if (match) return match[1];
-    const params = new URLSearchParams(window.location.search);
-    return params.get('itemId') || params.get('id');
+function getAliProductId() {
+    const url = window.location.href;
+    const match = url.match(/(\d{10,20})\.html/);
+    return match ? match[1] : null;
 }
 
+// Отвечаем на запрос от попапа
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "GET_PRODUCT_DATA") {
-        sendResponse({ id: extractProductId() });
+        sendResponse({ id: getAliProductId() });
     }
-    return true;
+    return true; 
 });
