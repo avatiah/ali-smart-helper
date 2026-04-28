@@ -9,11 +9,11 @@ export default async function handler(req, res) {
 
     const { id } = req.query;
     
-    // Проверка "пульса" API
-    if (!id) return res.json({ status: "online", version: "1.0.4" });
+    // Тест работоспособности
+    if (!id) return res.json({ status: "online", version: "1.0.5" });
 
     const { ALI_APP_KEY, ALI_SECRET_KEY } = process.env;
-    
+
     try {
         const params = {
             method: 'aliexpress.affiliate.product.detail.get',
@@ -35,7 +35,6 @@ export default async function handler(req, res) {
 
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${new URLSearchParams(params)}`);
         const result = await response.json();
-        
         const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
 
         if (product) {
@@ -45,9 +44,9 @@ export default async function handler(req, res) {
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            res.json({ status: "error", msg: "API: Not Found" });
+            res.json({ status: "error", msg: "Товар не найден в API" });
         }
     } catch (e) {
-        res.json({ status: "error", msg: "Server Error" });
+        res.json({ status: "error", msg: "Ошибка сервера" });
     }
 }
