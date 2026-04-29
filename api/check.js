@@ -1,24 +1,14 @@
-import crypto from 'crypto';
+const crypto = require('crypto');
 
-export default async function handler(req, res) {
-    // Устанавливаем заголовки до любой логики
+module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Content-Type', 'application/json');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { id } = req.query;
-
-    // ТЕСТ: Если зайти по ссылке без ID, должен быть этот ответ
-    if (!id) {
-        return res.status(200).json({ 
-            status: "ready", 
-            version: "1.0.7",
-            message: "API на связи. Жду productId." 
-        });
-    }
+    if (!id) return res.json({ status: "working", version: "1.0.8" });
 
     const { ALI_APP_KEY, ALI_SECRET_KEY } = process.env;
 
@@ -37,24 +27,23 @@ export default async function handler(req, res) {
         let str = ALI_SECRET_KEY.trim();
         for (const key of sortedKeys) str += key + params[key];
         str += ALI_SECRET_KEY.trim();
-        
         const sign = crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
         params.sign = sign;
 
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${new URLSearchParams(params)}`);
         const result = await response.json();
-        
         const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
 
         if (product) {
-            return res.status(200).json({
+            res.json({
                 status: "success",
                 price: product.target_sale_price || product.sale_price,
                 currency: product.target_sale_price_currency || "USD"
             });
+        } else {
+            res.json({ status: "error", msg: "AliExpress API: No data" });
         }
-        return res.status(200).json({ status: "error", msg: "API AliExpress не вернуло товар" });
     } catch (e) {
-        return res.status(200).json({ status: "error", msg: "Server Internal Error" });
+        res.json({ status: "error", msg: e.message });
     }
-}
+};
