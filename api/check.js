@@ -9,13 +9,24 @@ module.exports = async (req, res) => {
 
     const { id } = req.query;
     
-    // Это подтверждение того, что деплой прошел успешно
-    if (!id) return res.status(200).json({ status: "online", version: "1.1.2" });
+    // Проверка ключей перед выполнением
+    const appKey = process.env.ALI_APP_KEY;
+    const secret = process.env.ALI_SECRET_KEY;
+
+    if (!appKey || !secret) {
+        return res.status(200).json({ 
+            status: "error", 
+            msg: "Missing Environment Variables на стороне Vercel",
+            debug: { has_app_key: !!appKey, has_secret: !!secret }
+        });
+    }
+
+    if (!id) return res.status(200).json({ status: "online", version: "1.1.3" });
 
     try {
         const params = {
             method: 'aliexpress.affiliate.product.detail.get',
-            app_key: process.env.ALI_APP_KEY.trim(),
+            app_key: appKey.trim(),
             timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '').slice(0, 19),
             format: 'json',
             v: '2.0',
@@ -24,10 +35,9 @@ module.exports = async (req, res) => {
         };
 
         const sortedKeys = Object.keys(params).sort();
-        let str = process.env.ALI_SECRET_KEY.trim();
+        let str = secret.trim();
         for (const key of sortedKeys) str += key + params[key];
-        str += process.env.ALI_SECRET_KEY.trim();
-        
+        str += secret.trim();
         const sign = crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
         params.sign = sign;
 
@@ -42,7 +52,7 @@ module.exports = async (req, res) => {
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            res.status(200).json({ status: "error", msg: "Товар не найден" });
+            res.status(200).json({ status: "error", msg: "Ali API: Товар не найден" });
         }
     } catch (e) {
         res.status(200).json({ status: "error", msg: "Ошибка: " + e.message });
