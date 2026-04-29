@@ -1,6 +1,7 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
+    // CORS настройки
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Content-Type', 'application/json');
@@ -9,19 +10,24 @@ module.exports = async (req, res) => {
 
     const { id } = req.query;
     
-    // Проверка ключей перед выполнением
+    // Проверка переменных окружения
     const appKey = process.env.ALI_APP_KEY;
     const secret = process.env.ALI_SECRET_KEY;
 
-    if (!appKey || !secret) {
+    if (!id) {
         return res.status(200).json({ 
-            status: "error", 
-            msg: "Missing Environment Variables на стороне Vercel",
-            debug: { has_app_key: !!appKey, has_secret: !!secret }
+            status: "online", 
+            version: "1.1.4",
+            config: {
+                app_key_loaded: !!appKey,
+                secret_loaded: !!secret
+            }
         });
     }
 
-    if (!id) return res.status(200).json({ status: "online", version: "1.1.3" });
+    if (!appKey || !secret) {
+        return res.status(200).json({ status: "error", msg: "Environment variables not found" });
+    }
 
     try {
         const params = {
@@ -34,27 +40,30 @@ module.exports = async (req, res) => {
             product_ids: id
         };
 
+        // Генерация Sign
         const sortedKeys = Object.keys(params).sort();
         let str = secret.trim();
         for (const key of sortedKeys) str += key + params[key];
         str += secret.trim();
+        
         const sign = crypto.createHash('md5').update(str, 'utf8').digest('hex').toUpperCase();
         params.sign = sign;
 
         const response = await fetch(`https://eco.aliexpress.com/routerrest?${new URLSearchParams(params)}`);
         const result = await response.json();
+        
         const product = result.aliexpress_affiliate_product_detail_get_response?.resp_result?.result?.products?.product?.[0];
 
         if (product) {
-            res.status(200).json({
+            return res.status(200).json({
                 status: "success",
                 price: product.target_sale_price || product.sale_price,
                 currency: product.target_sale_price_currency || "USD"
             });
         } else {
-            res.status(200).json({ status: "error", msg: "Ali API: Товар не найден" });
+            return res.status(200).json({ status: "error", msg: "Product not found in AliExpress API" });
         }
     } catch (e) {
-        res.status(200).json({ status: "error", msg: "Ошибка: " + e.message });
+        return res.status(200).json({ status: "error", msg: e.message });
     }
-};
+}
